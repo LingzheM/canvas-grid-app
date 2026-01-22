@@ -1,10 +1,12 @@
-import Canvas from './components/Canvas/Canvas'
+import Sidebar from './components/Sidebar/Sidebar';
+import CanvasWorkspace from './components/CanvasWorkSpace/CanvasWorkspace';
 import './App.css'
 
 function App() {
   return (
     <div className='app'>
-      <Canvas />
+      <Sidebar />
+      <CanvasWorkspace /> 
     </div>
   )
   // const [count, setCount] = useState(0)

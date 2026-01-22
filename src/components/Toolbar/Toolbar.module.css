@@ -1,0 +1,61 @@
+.toolbar {
+  width: 60px;
+  height: 100%;
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.toolList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.toolItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 4px;
+  margin: 0 6px;
+}
+
+.toolItem:hover {
+  background-color: #f1f3f4;
+}
+
+.toolItemActive {
+  background-color: #e8f0fe;
+}
+
+.toolIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.toolItem:hover .toolIcon {
+  transform: scale(1.05);
+}
+
+.toolLabel {
+  font-size: 10px;
+  color: #5f6368;
+  text-align: center;
+  line-height: 1.2;
+  word-break: keep-all;
+  white-space: nowrap;
+}
+
+.toolItemActive .toolLabel {
+  color: #1a73e8;
+  font-weight: 500;
+}
