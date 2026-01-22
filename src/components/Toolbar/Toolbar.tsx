@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import styles from './Toolbar.module.css';
 
 type ToolType = 'device' | 'tool' | 'connection';
@@ -16,13 +16,32 @@ const TOOL_ITEMS: ToolItem[] = [
   { id: 'connection-1', type: 'connection', label: '连接线', color: '#fbbc04' },
 ];
 
-const Toolbar = () => {
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+interface ToolbarProps {
+  selectedTool: string | null;
+  onToolSelect: (toolId: string | null) => void;
+}
 
+const Toolbar = ({ selectedTool, onToolSelect }: ToolbarProps) => {
   const handleToolClick = (toolId: string) => {
-    setSelectedTool(toolId);
-    console.log('Selected tool:', toolId);
+    // 如果点击已选中的工具,取消选中
+    if (selectedTool === toolId) {
+      onToolSelect(null);
+    } else {
+      onToolSelect(toolId);
+    }
   };
+
+  // 监听ESC键取消工具选中
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedTool) {
+        onToolSelect(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTool, onToolSelect]);
 
   return (
     <div className={styles.toolbar}>
@@ -49,3 +68,7 @@ const Toolbar = () => {
 };
 
 export default Toolbar;
+
+// 导出工具项数据,供其他组件使用
+export { TOOL_ITEMS };
+export type { ToolItem };
