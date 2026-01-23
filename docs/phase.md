@@ -30,8 +30,13 @@
 - ✅ 刷新页面保持图形显示
 
 ### Phase 4
-
-
+- ✅ 连接线工具 - 拖拽创建连接
+- ✅ 连接点系统(设备4个点,工具4个点)
+- ✅ 连接点自动捕捉(15px范围)
+- ✅ 实时预览线(拖拽时显示)
+- ✅ 带箭头的连接线(指向终点)
+- ✅ 连接线数据持久化
+- ✅ 防止自连接(同一图形)
 
 ## 技术栈
 
@@ -72,23 +77,29 @@ npm run preview
 
 ```
 src/
+├── types/
+│   └── canvas.ts                    # TypeScript类型定义
+├── utils/
+│   └── connectionUtils.ts           # 连接线工具函数
 ├── components/
 │   ├── Canvas/
-│   │   ├── Canvas.tsx              # Canvas画布组件
-│   │   └── Canvas.module.css       # Canvas样式
+│   │   ├── Canvas.tsx               # 主Canvas组件
+│   │   ├── Canvas.module.css        # Canvas样式
+│   │   └── hooks/
+│   │       └── useConnectionTool.ts # 连接线拖拽Hook
 │   ├── Sidebar/
-│   │   ├── Sidebar.tsx             # 左侧导航栏
-│   │   └── Sidebar.module.css      # Sidebar样式
+│   │   ├── Sidebar.tsx              # 左侧导航栏
+│   │   └── Sidebar.module.css       # Sidebar样式
 │   ├── Toolbar/
-│   │   ├── Toolbar.tsx             # 垂直工具栏
-│   │   └── Toolbar.module.css      # Toolbar样式
+│   │   ├── Toolbar.tsx              # 垂直工具栏
+│   │   └── Toolbar.module.css       # Toolbar样式
 │   └── CanvasWorkspace/
-│       ├── CanvasWorkspace.tsx     # 工作区容器(Toolbar + Canvas)
+│       ├── CanvasWorkspace.tsx      # 工作区容器(状态管理)
 │       └── CanvasWorkspace.module.css # Workspace样式
-├── App.tsx                          # 主应用组件
-├── App.css                          # 应用样式
-├── main.tsx                         # 入口文件
-└── index.css                        # 全局样式
+├── App.tsx                           # 主应用组件
+├── App.css                           # 应用样式
+├── main.tsx                          # 入口文件
+└── index.css                         # 全局样式
 ```
 
 ## 布局说明
@@ -121,15 +132,17 @@ src/
 - 根据GRID_SIZE(50px)计算垂直和水平线条位置
 - 使用循环遍历绘制所有网格线
 
-## 下一步开发计划 (Phase 4+)
+## 下一步开发计划 (Phase 5+)
 
-- [ ] 图形的选中和移动
+- [ ] 图形的选中功能
+- [ ] 图形的拖拽移动
 - [ ] 图形的删除功能
-- [ ] 连接线功能(两个图形之间画线)
-- [ ] 图形的属性编辑
+- [ ] 连接线跟随图形移动自动更新
+- [ ] 图形属性编辑面板
 - [ ] 缩放和平移功能
 - [ ] 撤销/重做功能
-- [ ] 导出为图片
+- [ ] 导出为图片/JSON
+- [ ] 连接线样式自定义(虚线、曲线等)
 
 ## 使用说明
 
@@ -138,14 +151,27 @@ src/
 2. 在Canvas画布上点击你想要放置图形的位置
 3. 图形会自动创建,工具自动取消选中
 
+### 创建连接线
+1. 点击左侧工具栏的"连接线"按钮
+2. 所有图形上会显示4个连接点(灰色小圆点)
+3. 在起点图形的连接点上**按下鼠标**
+4. **拖拽鼠标**到终点图形的连接点
+5. **释放鼠标**完成连接
+6. 会自动绘制带箭头的连接线
+
 ### 取消工具选中
 - 按`ESC`键
 - 或再次点击已选中的工具
 
+### 连接点说明
+- **设备**: 上、右、下、左四个中点
+- **工具**: 0°、90°、180°、270°四个点
+- 点击附近15px范围内自动捕捉到最近的连接点
+
 ### 数据持久化
-- 创建的图形会自动保存到浏览器的localStorage
-- 刷新页面后图形会自动恢复
-- 如果需要清空所有图形,可以清除浏览器缓存或重启开发服务器
+- 创建的图形和连接线会自动保存到浏览器的localStorage
+- 刷新页面后图形和连接线会自动恢复
+- 如果需要清空所有数据,可以清除浏览器缓存或重启开发服务器
 
 ## License
 

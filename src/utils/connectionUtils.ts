@@ -59,7 +59,7 @@ export const findNearestPort = (
 export const getPortCoordinates = (
     shape: CanvasShape, 
     position: PortPosition
-): { x: number; y: number } | null => {
+): { x: number; y: number }  => {
     const ports = calculatePorts(shape);
     const port = ports.find(p => p.position === position);
     return port ? {x: port.x, y: port.y} : { x: shape.x, y: shape.y}; 
