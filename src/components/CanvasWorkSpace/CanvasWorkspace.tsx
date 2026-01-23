@@ -7,7 +7,7 @@ import type { CanvasShape, Connection } from '../../types/canvas';
 const SHAPES_STORAGE_KEY = 'canvas-shapes';
 const CONNECTIONS_STORAGE_KEY = 'canvas-connections';
 
-// 从localStorage加载初始数据的函数
+// 从localStorage加载初始图形数据的函数
 const loadInitialShapes = (): CanvasShape[] => {
   const savedShapes = localStorage.getItem(SHAPES_STORAGE_KEY);
   if (savedShapes) {
@@ -21,17 +21,18 @@ const loadInitialShapes = (): CanvasShape[] => {
   return [];
 };
 
+// 从localStorage加载初始连接线数据的函数
 const loadInitialConnections = (): Connection[] => {
-    const savedConnections = localStorage.getItem(CONNECTIONS_STORAGE_KEY);
-    if (savedConnections) {
-        try {
-            return JSON.parse(savedConnections);
-        } catch (error) {
-            console.error('Failed to load connections from localStorage:', error);
-            return [];
-        }
+  const savedConnections = localStorage.getItem(CONNECTIONS_STORAGE_KEY);
+  if (savedConnections) {
+    try {
+      return JSON.parse(savedConnections);
+    } catch (error) {
+      console.error('Failed to load connections from localStorage:', error);
+      return [];
     }
-    return [];
+  }
+  return [];
 };
 
 const CanvasWorkspace = () => {
@@ -40,16 +41,17 @@ const CanvasWorkspace = () => {
   const [shapes, setShapes] = useState<CanvasShape[]>(loadInitialShapes);
   const [connections, setConnections] = useState<Connection[]>(loadInitialConnections);
 
-  // 保存图形数据到localStorage (只在shapes变化时执行)
+  // 保存图形数据到localStorage
   useEffect(() => {
     localStorage.setItem(SHAPES_STORAGE_KEY, JSON.stringify(shapes));
   }, [shapes]);
 
+  // 保存连接线数据到localStorage
   useEffect(() => {
     localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(connections));
   }, [connections]);
 
-  // 处理Canvas点击事件
+  // 处理Canvas点击事件 - 创建图形
   const handleCanvasClick = (x: number, y: number) => {
     if (!selectedTool) return;
 
@@ -57,7 +59,7 @@ const CanvasWorkspace = () => {
     const tool = TOOL_ITEMS.find(item => item.id === selectedTool);
     if (!tool) return;
 
-    // 跳过连接线工具
+    // 跳过连接线工具(由拖拽处理)
     if (tool.type === 'connection') {
       return;
     }
@@ -89,8 +91,18 @@ const CanvasWorkspace = () => {
     setSelectedTool(null);
   };
 
-  const isConnectionToolActive = selectedTool === 'connection-1';
+  // 处理图形移动
+  const handleShapeMove = (shapeId: string, x: number, y: number) => {
+    const updatedShapes = shapes.map(shape =>
+      shape.id === shapeId ? { ...shape, x, y } : shape
+    );
+    setShapes(updatedShapes);
+  };
 
+  // 判断是否是连接线工具
+  const isConnectionToolActive = selectedTool === 'connection-1';
+  // 判断是否有任何工具被激活
+  const isAnyToolActive = selectedTool !== null;
 
   return (
     <div className={styles.workspace}>
@@ -103,8 +115,10 @@ const CanvasWorkspace = () => {
           shapes={shapes}
           connections={connections}
           isConnectionToolActive={isConnectionToolActive}
+          isAnyToolActive={isAnyToolActive}
           onCanvasClick={handleCanvasClick}
           onConnectionCreate={handleConnectionCreate}
+          onShapeMove={handleShapeMove}
         />
       </div>
     </div>

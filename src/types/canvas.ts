@@ -42,3 +42,15 @@ export interface Connection {
     toPort: PortPosition;
     color: string;
 }
+
+// 拖拽状态接口
+export interface DragState {
+    isDragging: boolean;
+    shapeId: string | null;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    previewX: number;
+    previewY: number;
+}
