@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import styles from './Canvas.module.css';
 import type { CanvasShape, Connection } from '../../types/canvas';
 import { useConnectionTool } from './hooks/useConnectionTool';
+import { useShapeDrag } from './hooks/useShapeDrag';
 import {
   calculatePorts,
   drawPort,
   drawArrow,
   getPortCoordinates,
 } from '../../utils/connectionUtils';
+import { drawSelectionBox } from '../../utils/shapeUtils';
 
 const GRID_SIZE = 50; // 网格间距50px
 const GRID_COLOR = '#e0e0e0'; // 浅灰色
@@ -16,27 +18,46 @@ interface CanvasProps {
   shapes: CanvasShape[];
   connections: Connection[];
   isConnectionToolActive: boolean;
+  isAnyToolActive: boolean;
   onCanvasClick: (x: number, y: number) => void;
   onConnectionCreate: (connection: Connection) => void;
+  onShapeMove: (shapeId: string, x: number, y: number) => void;
 }
 
 const Canvas = ({
   shapes,
   connections,
   isConnectionToolActive,
+  isAnyToolActive,
   onCanvasClick,
   onConnectionCreate,
+  onShapeMove,
 }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 使用拖拽Hook
+  const {
+    selectedShapeId,
+    dragState,
+    handleMouseDown: handleDragMouseDown,
+    handleMouseMove: handleDragMouseMove,
+    handleMouseUp: handleDragMouseUp,
+    setCanvasRef: setDragCanvasRef,
+    updateCanvasSize,
+  } = useShapeDrag({
+    shapes,
+    isAnyToolActive,
+    onShapeMove,
+  });
+
   // 使用连接线工具Hook
   const {
     connectionToolState,
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    setCanvasRef,
+    handleMouseDown: handleConnectionMouseDown,
+    handleMouseMove: handleConnectionMouseMove,
+    handleMouseUp: handleConnectionMouseUp,
+    setCanvasRef: setConnectionCanvasRef,
   } = useConnectionTool({
     isConnectionToolActive,
     shapes,
@@ -72,8 +93,19 @@ const Canvas = ({
 
       if (!fromShape || !toShape) return;
 
-      const fromPoint = getPortCoordinates(fromShape, connection.fromPort);
-      const toPoint = getPortCoordinates(toShape, connection.toPort);
+      // 如果图形正在被拖拽,使用预览位置计算连接点
+      const getShapePosition = (shape: CanvasShape) => {
+        if (dragState.isDragging && dragState.shapeId === shape.id) {
+          return { ...shape, x: dragState.previewX, y: dragState.previewY };
+        }
+        return shape;
+      };
+
+      const fromShapeWithPosition = getShapePosition(fromShape);
+      const toShapeWithPosition = getShapePosition(toShape);
+
+      const fromPoint = getPortCoordinates(fromShapeWithPosition, connection.fromPort);
+      const toPoint = getPortCoordinates(toShapeWithPosition, connection.toPort);
 
       // 绘制连接线
       ctx.strokeStyle = connection.color;
@@ -107,6 +139,20 @@ const Canvas = ({
   // 绘制图形的函数
   const drawShapes = (ctx: CanvasRenderingContext2D) => {
     shapes.forEach((shape) => {
+      // 判断是否是被拖拽的图形
+      const isDragging = dragState.isDragging && dragState.shapeId === shape.id;
+      const isSelected = selectedShapeId === shape.id;
+
+      // 如果正在拖拽,使用预览位置;否则使用原始位置
+      const displayX = isDragging ? dragState.previewX : shape.x;
+      const displayY = isDragging ? dragState.previewY : shape.y;
+
+      // 如果正在拖拽,设置半透明
+      const originalAlpha = ctx.globalAlpha;
+      if (isDragging) {
+        ctx.globalAlpha = 0.5;
+      }
+
       ctx.fillStyle = shape.color;
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 2;
@@ -115,8 +161,8 @@ const Canvas = ({
         // 绘制圆角矩形 (120x80)
         const width = 120;
         const height = 80;
-        const x = shape.x - width / 2;
-        const y = shape.y - height / 2;
+        const x = displayX - width / 2;
+        const y = displayY - height / 2;
         const radius = 8;
 
         ctx.beginPath();
@@ -138,13 +184,13 @@ const Canvas = ({
         ctx.font = 'bold 16px Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(shape.label, shape.x, shape.y);
+        ctx.fillText(shape.label, displayX, displayY);
       } else if (shape.type === 'tool') {
         // 绘制圆形 (直径100px, 半径50px)
         const radius = 50;
 
         ctx.beginPath();
-        ctx.arc(shape.x, shape.y, radius, 0, Math.PI * 2);
+        ctx.arc(displayX, displayY, radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
@@ -153,7 +199,16 @@ const Canvas = ({
         ctx.font = 'bold 16px Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(shape.label, shape.x, shape.y);
+        ctx.fillText(shape.label, displayX, displayY);
+      }
+
+      // 恢复透明度
+      ctx.globalAlpha = originalAlpha;
+
+      // 绘制选中框
+      if (isSelected && !isDragging) {
+        const selectionShape = { ...shape, x: displayX, y: displayY };
+        drawSelectionBox(ctx, selectionShape);
       }
     });
   };
@@ -183,6 +238,9 @@ const Canvas = ({
     // 获取容器的实际尺寸
     const { width, height } = container.getBoundingClientRect();
 
+    // 更新拖拽Hook中的canvas尺寸
+    updateCanvasSize(width, height);
+
     // 设置canvas的实际像素尺寸(考虑设备像素比)
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
@@ -208,8 +266,8 @@ const Canvas = ({
 
   // 处理Canvas点击事件
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // 如果是连接线工具,不触发普通点击
-    if (isConnectionToolActive) return;
+    // 如果是连接线工具或有工具激活,不触发普通点击
+    if (isConnectionToolActive || isAnyToolActive) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -221,10 +279,36 @@ const Canvas = ({
     onCanvasClick(x, y);
   };
 
+  // 整合鼠标事件处理
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isConnectionToolActive) {
+      handleConnectionMouseDown(e);
+    } else {
+      handleDragMouseDown(e);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isConnectionToolActive) {
+      handleConnectionMouseMove(e);
+    } else {
+      handleDragMouseMove(e);
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isConnectionToolActive) {
+      handleConnectionMouseUp(e);
+    } else {
+      handleDragMouseUp();
+    }
+  };
+
   useEffect(() => {
-    // 设置canvas引用给hook
+    // 设置canvas引用给hooks
     if (canvasRef.current) {
-      setCanvasRef(canvasRef.current);
+      setConnectionCanvasRef(canvasRef.current);
+      setDragCanvasRef(canvasRef.current);
     }
 
     // 初始化绘制
@@ -239,10 +323,10 @@ const Canvas = ({
     };
   }, []);
 
-  // 当shapes、connections或connectionToolState变化时重绘
+  // 当shapes、connections、connectionToolState或dragState变化时重绘
   useEffect(() => {
     resizeCanvas();
-  }, [shapes, connections, isConnectionToolActive, connectionToolState]);
+  }, [shapes, connections, isConnectionToolActive, connectionToolState, dragState, selectedShapeId]);
 
   return (
     <div ref={containerRef} className={styles.canvasContainer}>
