@@ -54,3 +54,34 @@ export interface DragState {
     previewX: number;
     previewY: number;
 }
+
+// 对齐线类型
+export type AlignmentType = 
+  | 'left'
+  | 'right'
+  | 'centerX'
+  | 'top'
+  | 'bottom'
+  | 'centerY'
+  | 'leftToRight'
+  | 'rightToLeft'
+  | 'topToBottom'
+  | 'bottomToTop';
+
+// 对齐线接口
+export interface AlignmentGuide {
+  type: AlignmentType;
+  position: number;
+  orientation: 'horizontal' | 'vertical';
+  referenceShapeId: string;
+}
+
+// 创建预览状态
+export interface CreationPreviewState {
+  isActive: boolean;
+  x: number;
+  y: number;
+  toolType: 'device' | 'tool' | null;
+  color: string;
+  label: string;
+}

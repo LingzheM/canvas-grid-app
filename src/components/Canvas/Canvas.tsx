@@ -3,6 +3,7 @@ import styles from './Canvas.module.css';
 import type { CanvasShape, Connection } from '../../types/canvas';
 import { useConnectionTool } from './hooks/useConnectionTool';
 import { useShapeDrag } from './hooks/useShapeDrag';
+import { useShapeCreation } from './hooks/useShapeCreation';
 import {
   calculatePorts,
   drawPort,
@@ -10,6 +11,7 @@ import {
   getPortCoordinates,
 } from '../../utils/connectionUtils';
 import { drawSelectionBox } from '../../utils/shapeUtils';
+import { drawAlignmentGuides } from '../../utils/alignmentUtils';
 
 const GRID_SIZE = 50; // 网格间距50px
 const GRID_COLOR = '#e0e0e0'; // 浅灰色
@@ -19,6 +21,9 @@ interface CanvasProps {
   connections: Connection[];
   isConnectionToolActive: boolean;
   isAnyToolActive: boolean;
+  selectedToolType: 'device' | 'tool' | null;
+  selectedToolColor: string;
+  selectedToolLabel: string;
   onCanvasClick: (x: number, y: number) => void;
   onConnectionCreate: (connection: Connection) => void;
   onShapeMove: (shapeId: string, x: number, y: number) => void;
@@ -29,6 +34,9 @@ const Canvas = ({
   connections,
   isConnectionToolActive,
   isAnyToolActive,
+  selectedToolType,
+  selectedToolColor,
+  selectedToolLabel,
   onCanvasClick,
   onConnectionCreate,
   onShapeMove,
@@ -36,10 +44,26 @@ const Canvas = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 使用图形创建预览Hook
+  const {
+    previewState,
+    alignmentGuides: creationAlignmentGuides,
+    handleMouseMove: handleCreationMouseMove,
+    handleMouseLeave: handleCreationMouseLeave,
+    getFinalPosition,
+    setCanvasRef: setCreationCanvasRef,
+  } = useShapeCreation({
+    shapes,
+    selectedToolType,
+    selectedToolColor,
+    selectedToolLabel,
+  });
+
   // 使用拖拽Hook
   const {
     selectedShapeId,
     dragState,
+    alignmentGuides: dragAlignmentGuides,
     handleMouseDown: handleDragMouseDown,
     handleMouseMove: handleDragMouseMove,
     handleMouseUp: handleDragMouseUp,
@@ -213,6 +237,65 @@ const Canvas = ({
     });
   };
 
+  // 绘制创建预览图形
+  const drawCreationPreview = (ctx: CanvasRenderingContext2D) => {
+    if (!previewState.isActive || !previewState.toolType) return;
+
+    const originalAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = 0.5; // 半透明预览
+
+    ctx.fillStyle = previewState.color;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+
+    if (previewState.toolType === 'device') {
+      // 绘制矩形预览
+      const width = 120;
+      const height = 80;
+      const x = previewState.x - width / 2;
+      const y = previewState.y - height / 2;
+      const radius = 8;
+
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.arcTo(x + width, y, x + width, y + radius, radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+      ctx.lineTo(x + radius, y + height);
+      ctx.arcTo(x, y + height, x, y + height - radius, radius);
+      ctx.lineTo(x, y + radius);
+      ctx.arcTo(x, y, x + radius, y, radius);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 绘制文字
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(previewState.label, previewState.x, previewState.y);
+    } else if (previewState.toolType === 'tool') {
+      // 绘制圆形预览
+      const radius = 50;
+
+      ctx.beginPath();
+      ctx.arc(previewState.x, previewState.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 绘制文字
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(previewState.label, previewState.x, previewState.y);
+    }
+
+    ctx.globalAlpha = originalAlpha;
+  };
+
   // 绘制连接点
   const drawConnectionPorts = (ctx: CanvasRenderingContext2D) => {
     if (!isConnectionToolActive) return;
@@ -260,14 +343,29 @@ const Canvas = ({
     drawGrid(ctx, width, height);
     drawConnections(ctx); // 先绘制连接线(在图形下方)
     drawShapes(ctx);
-    drawPreviewLine(ctx); // 预览线在最上层
+    drawCreationPreview(ctx); // 创建预览
+    drawPreviewLine(ctx); // 连接线预览
+    
+    // 绘制对齐辅助线(最上层)
+    const alignmentGuides = dragState.isDragging ? dragAlignmentGuides : creationAlignmentGuides;
+    if (alignmentGuides.length > 0) {
+      drawAlignmentGuides(ctx, alignmentGuides, width, height);
+    }
+    
     drawConnectionPorts(ctx); // 连接点在最上层
   };
 
   // 处理Canvas点击事件
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // 如果是连接线工具或有工具激活,不触发普通点击
-    if (isConnectionToolActive || isAnyToolActive) return;
+    if (isConnectionToolActive || isAnyToolActive) {
+      // 如果有工具选中且有预览,使用吸附后的位置
+      if (previewState.isActive && selectedToolType) {
+        const finalPos = getFinalPosition();
+        onCanvasClick(finalPos.x, finalPos.y);
+      }
+      return;
+    }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -291,7 +389,11 @@ const Canvas = ({
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isConnectionToolActive) {
       handleConnectionMouseMove(e);
+    } else if (selectedToolType && !dragState.isDragging) {
+      // 创建工具选中且不在拖拽中 - 显示创建预览
+      handleCreationMouseMove(e);
     } else {
+      // 拖拽移动
       handleDragMouseMove(e);
     }
   };
@@ -309,6 +411,7 @@ const Canvas = ({
     if (canvasRef.current) {
       setConnectionCanvasRef(canvasRef.current);
       setDragCanvasRef(canvasRef.current);
+      setCreationCanvasRef(canvasRef.current);
     }
 
     // 初始化绘制
@@ -323,10 +426,10 @@ const Canvas = ({
     };
   }, []);
 
-  // 当shapes、connections、connectionToolState或dragState变化时重绘
+  // 当shapes、connections、connectionToolState、dragState或previewState变化时重绘
   useEffect(() => {
     resizeCanvas();
-  }, [shapes, connections, isConnectionToolActive, connectionToolState, dragState, selectedShapeId]);
+  }, [shapes, connections, isConnectionToolActive, connectionToolState, dragState, selectedShapeId, previewState, creationAlignmentGuides, dragAlignmentGuides]);
 
   return (
     <div ref={containerRef} className={styles.canvasContainer}>
@@ -337,6 +440,7 @@ const Canvas = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseLeave={handleCreationMouseLeave}
       />
     </div>
   );
