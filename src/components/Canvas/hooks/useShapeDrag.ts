@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { type AlignmentGuide, type CanvasShape, type DragState } from '../../../types/canvas';
+import type { CanvasShape, DragState, AlignmentGuide } from '../../../types/canvas';
 import { findShapeAtPoint, constrainShapePosition } from '../../../utils/shapeUtils';
 import { findNearestPort } from '../../../utils/connectionUtils';
 import { detectAlignments, applySnapping } from '../../../utils/alignmentUtils';
@@ -7,6 +7,7 @@ import { detectAlignments, applySnapping } from '../../../utils/alignmentUtils';
 interface UseShapeDragProps {
   shapes: CanvasShape[];
   isAnyToolActive: boolean;
+  isConnectionToolActive: boolean;
   onShapeMove: (shapeId: string, x: number, y: number) => void;
 }
 
@@ -26,7 +27,6 @@ export const useShapeDrag = ({
     previewX: 0,
     previewY: 0,
   });
-
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -124,11 +124,11 @@ export const useShapeDrag = ({
       const guides = detectAlignments(previewShape, shapes, dragState.shapeId);
 
       // 应用吸附
-      const snappedPost = applySnapping(previewShape, guides);
+      const snappedPos = applySnapping(previewShape, guides);
 
       // 应用边界限制
       const { width, height } = canvasSizeRef.current;
-      const constrainedPos = constrainShapePosition(shape, snappedPost.x, snappedPost.y, width, height);
+      const constrainedPos = constrainShapePosition(shape, snappedPos.x, snappedPos.y, width, height);
 
       // 更新预览位置和对齐线
       setDragState(prev => ({
@@ -149,7 +149,7 @@ export const useShapeDrag = ({
     // 应用最终位置
     onShapeMove(dragState.shapeId, dragState.previewX, dragState.previewY);
 
-    // 重置拖拽状态
+    // 重置拖拽状态和对齐线
     setDragState({
       isDragging: false,
       shapeId: null,
@@ -163,17 +163,17 @@ export const useShapeDrag = ({
     setAlignmentGuides([]);
   }, [dragState, onShapeMove]);
 
-  // 添加全局mouseup监听
+  // 添加全局mouseup监听,防止鼠标移出canvas后释放
   useEffect(() => {
     if (dragState.isDragging) {
-        const handleGlobalMouseUp = () => {
-            handleMouseUp();
-        };
+      const handleGlobalMouseUp = () => {
+        handleMouseUp();
+      };
 
-        window.addEventListener('mouseup', handleGlobalMouseUp);
-        return () => {
-            window.removeEventListener('mouseup', handleGlobalMouseUp);
-        };
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => {
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
     }
   }, [dragState.isDragging, handleMouseUp]);
 

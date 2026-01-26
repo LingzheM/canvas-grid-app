@@ -72,6 +72,7 @@ const Canvas = ({
   } = useShapeDrag({
     shapes,
     isAnyToolActive,
+    isConnectionToolActive,
     onShapeMove,
   });
 
