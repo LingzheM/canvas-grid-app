@@ -207,13 +207,58 @@ src/
 
 ### 智能对齐辅助线
 - **品红色实线**表示对齐关系
-- 支持的对齐类型:
-  - 左边线对齐、右边线对齐、垂直中心线对齐
-  - 上边线对齐、下边线对齐、水平中心线对齐
-  - 边缘紧邻(左对右、右对左、上对下、下对上)
 - **自动吸附**: 接近对齐位置8px范围内自动调整到精确对齐
 - **容差检测**: 5px范围内显示对齐线
 - 最多同时显示4条辅助线(2条水平+2条垂直)
+
+#### 对齐类型定义 (AlignmentType)
+
+命名格式: **"预览图形的边 To 已有图形的边"**
+
+**垂直方向对齐 (orientation: 'vertical')**
+
+| Type | 含义 | 检测条件 | 吸附计算 |
+|------|------|----------|----------|
+| `left` | 预览左边 对齐 已有左边 | `preview.left = existing.left` | `x = position + halfWidth` |
+| `right` | 预览右边 对齐 已有右边 | `preview.right = existing.right` | `x = position - halfWidth` |
+| `centerX` | 预览垂直中心 对齐 已有垂直中心 | `preview.centerX = existing.centerX` | `x = position` |
+| `leftToRight` | 预览左边 对齐 已有右边 | `preview.left = existing.right` | `x = position + halfWidth` |
+| `rightToLeft` | 预览右边 对齐 已有左边 | `preview.right = existing.left` | `x = position - halfWidth` |
+
+**水平方向对齐 (orientation: 'horizontal')**
+
+| Type | 含义 | 检测条件 | 吸附计算 |
+|------|------|----------|----------|
+| `top` | 预览上边 对齐 已有上边 | `preview.top = existing.top` | `y = position + halfHeight` |
+| `bottom` | 预览下边 对齐 已有下边 | `preview.bottom = existing.bottom` | `y = position - halfHeight` |
+| `centerY` | 预览水平中心 对齐 已有水平中心 | `preview.centerY = existing.centerY` | `y = position` |
+| `topToBottom` | 预览上边 对齐 已有下边 | `preview.top = existing.bottom` | `y = position + halfHeight` |
+| `bottomToTop` | 预览下边 对齐 已有上边 | `preview.bottom = existing.top` | `y = position - halfHeight` |
+
+**位置关系示意图**
+
+```
+垂直方向对齐:
+
+  leftToRight (预览在右侧紧邻)     rightToLeft (预览在左侧紧邻)
+  ┌──────┐┌──────┐                ┌──────┐┌──────┐
+  │已有  ││预览  │                │预览  ││已有  │
+  └──────┘└──────┘                └──────┘└──────┘
+          ↑                               ↑
+    预览.left = 已有.right         预览.right = 已有.left
+
+水平方向对齐:
+
+  topToBottom (预览在下方紧邻)     bottomToTop (预览在上方紧邻)
+  ┌──────┐                        ┌──────┐
+  │已有  │                        │预览  │
+  └──────┘                        └──────┘
+  ┌──────┐                        ┌──────┐
+  │预览  │                        │已有  │
+  └──────┘                        └──────┘
+      ↑                               ↑
+预览.top = 已有.bottom         预览.bottom = 已有.top
+```
 
 ### 数据持久化
 - 创建的图形和连接线会自动保存到浏览器的localStorage
