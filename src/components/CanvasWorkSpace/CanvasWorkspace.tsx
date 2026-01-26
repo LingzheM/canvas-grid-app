@@ -104,6 +104,11 @@ const CanvasWorkspace = () => {
   // 判断是否有任何工具被激活
   const isAnyToolActive = selectedTool !== null;
 
+  const selectedToolInfo = selectedTool ? TOOL_ITEMS.find(item => item.id === selectedTool) : null;
+  const selectedToolType = selectedToolInfo && selectedToolInfo.type !== 'connection' ? (selectedToolInfo.type as 'device' | 'tool') : null;
+  const selectedToolColor = selectedToolInfo?.color || '';
+  const selectedToolLabel = selectedToolInfo?.label || '';
+
   return (
     <div className={styles.workspace}>
       <Toolbar 
@@ -116,6 +121,9 @@ const CanvasWorkspace = () => {
           connections={connections}
           isConnectionToolActive={isConnectionToolActive}
           isAnyToolActive={isAnyToolActive}
+          selectedToolType={selectedToolType}
+          selectedToolColor={selectedToolColor}
+          selectedToolLabel={selectedToolLabel}
           onCanvasClick={handleCanvasClick}
           onConnectionCreate={handleConnectionCreate}
           onShapeMove={handleShapeMove}

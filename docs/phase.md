@@ -47,6 +47,15 @@
 - ✅ 点击空白取消选中
 - ✅ 工具冲突处理(连接线工具优先连接点)
 
+### Phase 6
+- ✅ 智能对齐辅助线系统
+- ✅ 创建图形时的预览和对齐
+- ✅ 拖拽移动时的对齐线显示
+- ✅ 自动吸附功能(8px范围)
+- ✅ 多种对齐类型(左右中/上下中/边对边)
+- ✅ 品红色对齐辅助线
+- ✅ 性能优化(最多4条辅助线)
+
 ## 技术栈
 
 - React 18
@@ -90,14 +99,16 @@ src/
 │   └── canvas.ts                    # TypeScript类型定义
 ├── utils/
 │   ├── connectionUtils.ts           # 连接线工具函数
-│   └── shapeUtils.ts                # 图形工具函数(NEW)
+│   ├── shapeUtils.ts                # 图形工具函数
+│   └── alignmentUtils.ts            # 对齐检测工具函数(NEW)
 ├── components/
 │   ├── Canvas/
 │   │   ├── Canvas.tsx               # 主Canvas组件
 │   │   ├── Canvas.module.css        # Canvas样式
 │   │   └── hooks/
 │   │       ├── useConnectionTool.ts # 连接线拖拽Hook
-│   │       └── useShapeDrag.ts      # 图形拖拽Hook(NEW)
+│   │       ├── useShapeDrag.ts      # 图形拖拽Hook
+│   │       └── useShapeCreation.ts  # 图形创建预览Hook(NEW)
 │   ├── Sidebar/
 │   │   ├── Sidebar.tsx              # 左侧导航栏
 │   │   └── Sidebar.module.css       # Sidebar样式
@@ -160,15 +171,18 @@ src/
 
 ### 创建图形
 1. 点击左侧工具栏的"设备"或"工具"按钮
-2. 在Canvas画布上点击你想要放置图形的位置
-3. 图形会自动创建,工具自动取消选中
+2. 在Canvas画布上**移动鼠标**,会看到**半透明预览图形**
+3. 当接近其他图形时,会自动显示**品红色对齐辅助线**
+4. 图形会**自动吸附**到对齐位置(8px范围内)
+5. 点击放置图形,工具自动取消选中
 
 ### 移动图形
 1. 确保**没有工具选中**(所有工具都未高亮)
 2. 点击要移动的图形,图形会显示**蓝色虚线选中框**
 3. 按住鼠标**拖拽图形**,图形会半透明显示预览位置
-4. 释放鼠标完成移动,连接线会自动更新
-5. 点击空白区域取消选中
+4. 拖拽时也会显示**对齐辅助线**和**自动吸附**
+5. 释放鼠标完成移动,连接线会自动更新
+6. 点击空白区域取消选中
 
 ### 创建连接线
 1. 点击左侧工具栏的"连接线"按钮
@@ -190,6 +204,61 @@ src/
 ### 边界限制
 - 拖拽图形时,图形**不能超出Canvas边界**
 - 系统会自动限制图形在可视区域内
+
+### 智能对齐辅助线
+- **品红色实线**表示对齐关系
+- **自动吸附**: 接近对齐位置8px范围内自动调整到精确对齐
+- **容差检测**: 5px范围内显示对齐线
+- 最多同时显示4条辅助线(2条水平+2条垂直)
+
+#### 对齐类型定义 (AlignmentType)
+
+命名格式: **"预览图形的边 To 已有图形的边"**
+
+**垂直方向对齐 (orientation: 'vertical')**
+
+| Type | 含义 | 检测条件 | 吸附计算 |
+|------|------|----------|----------|
+| `left` | 预览左边 对齐 已有左边 | `preview.left = existing.left` | `x = position + halfWidth` |
+| `right` | 预览右边 对齐 已有右边 | `preview.right = existing.right` | `x = position - halfWidth` |
+| `centerX` | 预览垂直中心 对齐 已有垂直中心 | `preview.centerX = existing.centerX` | `x = position` |
+| `leftToRight` | 预览左边 对齐 已有右边 | `preview.left = existing.right` | `x = position + halfWidth` |
+| `rightToLeft` | 预览右边 对齐 已有左边 | `preview.right = existing.left` | `x = position - halfWidth` |
+
+**水平方向对齐 (orientation: 'horizontal')**
+
+| Type | 含义 | 检测条件 | 吸附计算 |
+|------|------|----------|----------|
+| `top` | 预览上边 对齐 已有上边 | `preview.top = existing.top` | `y = position + halfHeight` |
+| `bottom` | 预览下边 对齐 已有下边 | `preview.bottom = existing.bottom` | `y = position - halfHeight` |
+| `centerY` | 预览水平中心 对齐 已有水平中心 | `preview.centerY = existing.centerY` | `y = position` |
+| `topToBottom` | 预览上边 对齐 已有下边 | `preview.top = existing.bottom` | `y = position + halfHeight` |
+| `bottomToTop` | 预览下边 对齐 已有上边 | `preview.bottom = existing.top` | `y = position - halfHeight` |
+
+**位置关系示意图**
+
+```
+垂直方向对齐:
+
+  leftToRight (预览在右侧紧邻)     rightToLeft (预览在左侧紧邻)
+  ┌──────┐┌──────┐                ┌──────┐┌──────┐
+  │已有  ││预览  │                │预览  ││已有  │
+  └──────┘└──────┘                └──────┘└──────┘
+          ↑                               ↑
+    预览.left = 已有.right         预览.right = 已有.left
+
+水平方向对齐:
+
+  topToBottom (预览在下方紧邻)     bottomToTop (预览在上方紧邻)
+  ┌──────┐                        ┌──────┐
+  │已有  │                        │预览  │
+  └──────┘                        └──────┘
+  ┌──────┐                        ┌──────┐
+  │预览  │                        │已有  │
+  └──────┘                        └──────┘
+      ↑                               ↑
+预览.top = 已有.bottom         预览.bottom = 已有.top
+```
 
 ### 数据持久化
 - 创建的图形和连接线会自动保存到浏览器的localStorage
