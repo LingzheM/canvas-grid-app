@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
-import type { CanvasShape, CreationPreviewState, AlignmentGuide } from '../../../types/canvas';
+import { type CanvasShape, type CreationPreviewState, type AlignmentGuide,  type SpacingGuide } from '../../../types/canvas';
 import { detectAlignments, applySnapping } from '../../../utils/alignmentUtils';
+import { detectEqualSpacing } from '../../../utils/spacingUtils';
 
 interface UseShapeCreationProps {
   shapes: CanvasShape[];
@@ -25,6 +26,7 @@ export const useShapeCreation = ({
   });
 
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
+  const [spacingGuides, setSpacingGuides] = useState<SpacingGuide[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // 设置Canvas引用
@@ -38,6 +40,7 @@ export const useShapeCreation = ({
       if (!selectedToolType) {
         setPreviewState(prev => ({ ...prev, isActive: false }));
         setAlignmentGuides([]);
+        setSpacingGuides([]);
         return;
       }
 
@@ -67,6 +70,16 @@ export const useShapeCreation = ({
       // 应用吸附
       const snappedPos = applySnapping(previewShape, guides);
 
+      // 更新预览图形位置
+      const snappedPreviewShape: CanvasShape = {
+        ...previewShape,
+        x: snappedPos.x,
+        y: snappedPos.y,
+      };
+
+      // 检测等间距
+      const spacingGuidesResult = detectEqualSpacing(snappedPreviewShape, shapes);
+
       setPreviewState({
         isActive: true,
         x: snappedPos.x,
@@ -77,6 +90,7 @@ export const useShapeCreation = ({
       });
 
       setAlignmentGuides(guides);
+      setSpacingGuides(spacingGuidesResult);
     },
     [selectedToolType, selectedToolColor, selectedToolLabel, shapes]
   );
@@ -85,6 +99,7 @@ export const useShapeCreation = ({
   const handleMouseLeave = useCallback(() => {
     setPreviewState(prev => ({ ...prev, isActive: false }));
     setAlignmentGuides([]);
+    setSpacingGuides([]);
   }, []);
 
   // 获取最终的放置坐标(带吸附)
@@ -95,6 +110,7 @@ export const useShapeCreation = ({
   return {
     previewState,
     alignmentGuides,
+    spacingGuides,
     handleMouseMove,
     handleMouseLeave,
     getFinalPosition,

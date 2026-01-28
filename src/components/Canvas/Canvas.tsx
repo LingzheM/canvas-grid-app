@@ -12,6 +12,7 @@ import {
 } from '../../utils/connectionUtils';
 import { drawSelectionBox } from '../../utils/shapeUtils';
 import { drawAlignmentGuides } from '../../utils/alignmentUtils';
+import { drawSpacingGuides } from '../../utils/spacingUtils';
 
 const GRID_SIZE = 50; // 网格间距50px
 const GRID_COLOR = '#e0e0e0'; // 浅灰色
@@ -48,6 +49,7 @@ const Canvas = ({
   const {
     previewState,
     alignmentGuides: creationAlignmentGuides,
+    spacingGuides: creationSpacingGuides,
     handleMouseMove: handleCreationMouseMove,
     handleMouseLeave: handleCreationMouseLeave,
     getFinalPosition,
@@ -64,6 +66,7 @@ const Canvas = ({
     selectedShapeId,
     dragState,
     alignmentGuides: dragAlignmentGuides,
+    spacingGuides: dragSpacingGuides,
     handleMouseDown: handleDragMouseDown,
     handleMouseMove: handleDragMouseMove,
     handleMouseUp: handleDragMouseUp,
@@ -352,6 +355,12 @@ const Canvas = ({
     if (alignmentGuides.length > 0) {
       drawAlignmentGuides(ctx, alignmentGuides, width, height);
     }
+
+    // 绘制等间距辅助线(最上层)
+    const spacingGuides = dragState.isDragging ? dragSpacingGuides : creationSpacingGuides;
+    if (spacingGuides.length > 0) {
+      drawSpacingGuides(ctx, spacingGuides);
+    }
     
     drawConnectionPorts(ctx); // 连接点在最上层
   };
@@ -430,7 +439,19 @@ const Canvas = ({
   // 当shapes、connections、connectionToolState、dragState或previewState变化时重绘
   useEffect(() => {
     resizeCanvas();
-  }, [shapes, connections, isConnectionToolActive, connectionToolState, dragState, selectedShapeId, previewState, creationAlignmentGuides, dragAlignmentGuides]);
+  }, [
+    shapes, 
+    connections, 
+    isConnectionToolActive, 
+    connectionToolState, 
+    dragState, 
+    selectedShapeId, 
+    previewState, 
+    creationAlignmentGuides, 
+    dragAlignmentGuides,
+    creationSpacingGuides,
+    dragSpacingGuides
+  ]);
 
   return (
     <div ref={containerRef} className={styles.canvasContainer}>

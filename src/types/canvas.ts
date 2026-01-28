@@ -76,6 +76,18 @@ export interface AlignmentGuide {
   referenceShapeId: string;  // 参考图形的ID
 }
 
+// 等间距辅助线接口
+export interface SpacingGuide {
+  orientation: 'horizontal' | 'vertical';
+  spacing: number;  // 间距大小(px)
+  startShapeId: string; // 起始图形ID
+  endShapeId: string; // 结束图形ID
+  startX: number; // 线段起点
+  startY: number; // 线段起点
+  endX: number; // 线段终点
+  endY: number; // 线段终点
+}
+
 // 创建预览状态
 export interface CreationPreviewState {
   isActive: boolean;

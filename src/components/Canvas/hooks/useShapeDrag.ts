@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { CanvasShape, DragState, AlignmentGuide } from '../../../types/canvas';
+import type { CanvasShape, DragState, AlignmentGuide, SpacingGuide } from '../../../types/canvas';
 import { findShapeAtPoint, constrainShapePosition } from '../../../utils/shapeUtils';
 import { findNearestPort } from '../../../utils/connectionUtils';
 import { detectAlignments, applySnapping } from '../../../utils/alignmentUtils';
+import { detectEqualSpacing } from '../../../utils/spacingUtils';
 
 interface UseShapeDragProps {
   shapes: CanvasShape[];
@@ -28,6 +29,7 @@ export const useShapeDrag = ({
     previewY: 0,
   });
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
+  const [spacingGuides, setSpacingGuides] = useState<SpacingGuide[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
@@ -126,6 +128,16 @@ export const useShapeDrag = ({
       // 应用吸附
       const snappedPos = applySnapping(previewShape, guides);
 
+      // 更新预览图形位置
+      const snappedPreviewShape: CanvasShape = {
+        ...shape,
+        x: snappedPos.x,
+        y: snappedPos.y,
+      };
+
+      // 检测等间距
+      const spacingGuidesResult = detectEqualSpacing(snappedPreviewShape, shapes, dragState.shapeId);
+
       // 应用边界限制
       const { width, height } = canvasSizeRef.current;
       const constrainedPos = constrainShapePosition(shape, snappedPos.x, snappedPos.y, width, height);
@@ -138,6 +150,7 @@ export const useShapeDrag = ({
       }));
 
       setAlignmentGuides(guides);
+      setSpacingGuides(spacingGuidesResult);
     },
     [dragState.isDragging, dragState.shapeId, dragState.offsetX, dragState.offsetY, shapes]
   );
@@ -161,6 +174,7 @@ export const useShapeDrag = ({
       previewY: 0,
     });
     setAlignmentGuides([]);
+    setSpacingGuides([]);
   }, [dragState, onShapeMove]);
 
   // 添加全局mouseup监听,防止鼠标移出canvas后释放
@@ -181,6 +195,7 @@ export const useShapeDrag = ({
     selectedShapeId,
     dragState,
     alignmentGuides,
+    spacingGuides,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
